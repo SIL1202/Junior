@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 2) 確保 data.yaml 指到正確路徑（相對於 data.yaml）
+# 2) 記得確保 data.yaml 指到正確路徑（相對於 data.yaml）
 #   train: ./train/images
 #   val:   ./val/images
 #   nc: 1
 #   names: ['paddle']
+
 echo "[i] using data.yaml:"
 grep -E '^(train|val|nc|names):' data.yaml || true
 
@@ -15,18 +16,17 @@ if [ ! -d "val/images" ] || [ ! -d "val/labels" ]; then
   exit 1
 fi
 
-# start training（choose a weight：yolo11n.pt or yolov8n.pt）
 yolo detect train data=./data.yaml model=yolo11n.pt epochs=100 imgsz=640
 
-# 找最新的 runs/detect/train*/ 目錄
-LATEST_DIR="$(ls -td runs/detect/train*/ | head -1 || true)"
+# find the newest runs/detect/train*/ directory
+LATEST_DIR=$(ls -td runs/detect/train*/ 2>/dev/null | head -1)
 if [ -z "${LATEST_DIR:-}" ]; then
-  echo "[x] 沒找到 runs/detect/train*/ 目錄，訓練是不是沒成功？" >&2
+  echo "[x] didn't find runs/detect/train*/ directory, training process might filed." >&2
   exit 1
 fi
 BEST="${LATEST_DIR%/}/weights/best.pt"
 
-VIDEO="${VIDEO:-../source.mp4}" # 允許外面用環境變數覆蓋
+VIDEO="${VIDEO:-../DataSet/source1.mp4}"
 if [ -f "$BEST" ]; then
   echo "[i] predicting on $VIDEO using $BEST"
   yolo detect predict model="$BEST" source="$VIDEO" save=True

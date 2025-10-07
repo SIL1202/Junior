@@ -1,11 +1,14 @@
 # make_val_split.py
 import os, random, shutil, glob, pathlib
+
 random.seed(42)
 
-assert os.path.isdir("train/images") and os.path.isdir("train/labels"), "找不到 train/images 或 train/labels"
+assert os.path.isdir("train/images") and os.path.isdir(
+    "train/labels"
+), "failed to find train/images or train/labels"
 
 imgs = sorted(glob.glob("train/images/*.*"))
-k = max(1, len(imgs)//5)  # 20%
+k = max(1, len(imgs) // 5)  # 20%
 pick = set(random.sample(imgs, k))
 
 pathlib.Path("val/images").mkdir(parents=True, exist_ok=True)
