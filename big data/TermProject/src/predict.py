@@ -15,10 +15,6 @@ df = pd.read_csv("weather_processed.csv")
 df["date"] = pd.to_datetime(df["date"])
 df = df.sort_values("date").reset_index(drop=True)
 
-# ------------------------
-# 清掉缺失（最基本三欄）
-# ------------------------
-df = df.dropna(subset=["TMAX", "TMIN", "PRCP"])
 
 print(f"資料期間：{df['date'].min()} 到 {df['date'].max()}")
 print(f"總筆數：{len(df)}")
@@ -59,9 +55,6 @@ df["day_of_year"] = df["date"].dt.dayofyear
 df["is_winter"] = df["month"].isin([12, 1, 2]).astype(int)
 df["is_summer"] = df["month"].isin([6, 7, 8]).astype(int)
 
-# ------------------------
-# 缺失值補 0（氣象特徵有些月份會缺）
-# ------------------------
 df = df.fillna(0)
 
 # ------------------------
@@ -106,16 +99,24 @@ print(f"使用特徵數量：{len(static_features)} 個")
 # ------------------------
 def moving_average(series, n_test, w=7):
     hist = list(series)
-    preds = [np.mean(hist[-w:]) for _ in range(n_test)]
+    preds = []
+
+    for _ in range(n_test):
+        pred = np.mean(hist[-w:])
+        preds.append(pred)
+        hist.append(pred)  # 更新視窗
+
     return np.array(preds)
 
 
 def exponential_smoothing(series, n_test, alpha=0.3):
     last = series[-1]
     preds = []
+    smoothed = last
+
     for _ in range(n_test):
-        preds.append(last)
-        last = alpha * last + (1 - alpha) * last
+        preds.append(smoothed)
+        smoothed = alpha * smoothed + (1 - alpha) * preds[-1]
     return np.array(preds)
 
 
@@ -169,8 +170,8 @@ def evaluate(name, true, pred):
     return mae
 
 
+# 預測全部結果
 def predict():
-    # 全部預測結果
     pred_df = pd.DataFrame(
         {
             "date": test["date"],
@@ -210,6 +211,17 @@ def predict():
         }
     )
     print(pred_df.head(20))
+
+    pred_df = pd.DataFrame(
+        {
+            "date": test["date"],
+            "actual_TMAX": y_test,
+            "pred_TMAX": lr_pred,
+            "diff": y_test - lr_pred,
+        }
+    )
+    print(pred_df.head(20))
+
     pred_df.to_csv("forecast_output.csv", index=False)
 
 
@@ -229,11 +241,10 @@ def forecast_next_week(df, model, feature_cols):
     future_preds = []
     temp_df = df.copy()
 
-    for i in range(7):
+    for _ in range(7):
         last_row = temp_df.iloc[-1]
         next_date = last_row["date"] + pd.Timedelta(days=1)
 
-        # --- 建 new_row ---
         new_row = {"date": next_date}
 
         # 季節特徵
@@ -242,9 +253,7 @@ def forecast_next_week(df, model, feature_cols):
         new_row["is_winter"] = int(next_date.month in [12, 1, 2])
         new_row["is_summer"] = int(next_date.month in [6, 7, 8])
 
-        # static features 先補上（一定要在預測前就存在）
         for col in ["SNOW", "SNWD", "AWND", "WSF2", "WDF2", "WT01", "WT03"]:
-            # 若 df 裡有就沿用最後一天，否則設 0
             if col in temp_df.columns:
                 new_row[col] = temp_df[col].iloc[-1]
             else:
@@ -255,16 +264,14 @@ def forecast_next_week(df, model, feature_cols):
             for lag in [1, 2, 3]:
                 new_row[f"{col}_lag{lag}"] = temp_df[col].iloc[-lag]
 
-        # 先建好完整特徵
         next_df = pd.DataFrame([new_row]).fillna(0)
 
-        # --- 預測 ---
+        # 預測
         X_next = next_df[feature_cols].values
         pred_tmax = model.predict(X_next)[0]
         future_preds.append((next_date, pred_tmax))
 
-        # --- append 回 df ---
-        next_df["TMAX"] = pred_tmax  # 預測值
+        next_df["TMAX"] = pred_tmax
         next_df["TMIN"] = temp_df["TMIN"].iloc[-1]
         next_df["PRCP"] = 0
 
@@ -324,3 +331,4 @@ plt.grid(True)
 
 plt.tight_layout()
 plt.show()
+lt.show()

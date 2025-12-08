@@ -1,100 +1,109 @@
+import time
 import requests
 import pandas as pd
-import os
 from datetime import datetime, timedelta
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv("NOAA_API_TOKEN")
-
-STATION = "GHCND:USW00094728"  # New York Central Park
+STATION = "GHCND:USW00094728"
 BASE_URL = "https://www.ncdc.noaa.gov/cdo-web/api/v2/data"
 HEADERS = {"token": TOKEN}
-
-# 你抓的所有 datatype
-DATATYPES = [
-    "TMAX",
-    "TMIN",
-    "PRCP",
-    "SNOW",
-    "SNWD",
-    "AWND",
-    "WSF2",
-    "WDF2",
-    "WT01",
-    "WT03",
-]
 
 OUTPUT = "weather_processed.csv"
 
 
-def fetch_range(start, end):
-    """抓取 start ~ end 之間的所有天數資料"""
+# -------------------------------------------
+# 抓取某一日期 (單日)
+# -------------------------------------------
+def fetch_one_day(date_str):
     params = {
         "datasetid": "GHCND",
         "stationid": STATION,
-        "startdate": start,
-        "enddate": end,
+        "startdate": date_str,
+        "enddate": date_str,
         "limit": 1000,
-        "datatypeid": ",".join(DATATYPES),
     }
     r = requests.get(BASE_URL, headers=HEADERS, params=params)
 
     if r.status_code != 200:
-        print("API ERROR:", r.text)
+        print(f"[WARN] {date_str} 無法取得資料，HTTP {r.status_code}")
         return []
 
     return r.json().get("results", [])
 
 
-def main():
-    # 如果檔案不存在 → 直接退出
-    if not os.path.exists(OUTPUT):
-        print(f"[ERROR] 找不到 {OUTPUT}，請先跑一次 forecasting")
-        return
+# -------------------------------------------
+# 處理資料
+# -------------------------------------------
+def process_daily_records(records):
+    if not records:
+        return None
 
-    df = pd.read_csv(OUTPUT)
+    df = pd.DataFrame(records)
     df["date"] = pd.to_datetime(df["date"]).dt.date
-
-    last_date = df["date"].max()
-    today = datetime.today().date()
-
-    if last_date >= today:
-        print("[INFO] 資料已是最新，不需更新")
-        return
-
-    print(f"[INFO] 目前資料到 {last_date}，開始更新到 {today}")
-
-    start = last_date + timedelta(days=1)
-    end = today
-
-    raw = fetch_range(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
-
-    if not raw:
-        print("[INFO] 沒抓到新資料")
-        return
-
-    new_df = pd.DataFrame(raw)
-    new_df["date"] = pd.to_datetime(new_df["date"]).dt.date
-
-    pivot = new_df.pivot_table(
+    df = df.pivot_table(
         index="date", columns="datatype", values="value", aggfunc="mean"
     )
 
-    # 轉換單位
-    for col in ["TMAX", "TMIN", "PRCP"]:
-        if col in pivot.columns:
-            pivot[col] /= 10.0
+    # 溫度除以10
+    if "TMAX" in df.columns:
+        df["TMAX"] = df["TMAX"] / 10.0
+    if "TMIN" in df.columns:
+        df["TMIN"] = df["TMIN"] / 10.0
+    if "PRCP" in df.columns:
+        df["PRCP"] = df["PRCP"] / 10.0
 
-    pivot = pivot.reset_index()
-
-    # 合併
-    final = pd.concat([df, pivot], ignore_index=True)
-    final = final.sort_values("date")
-
-    final.to_csv(OUTPUT, index=False)
-    print(f"[SUCCESS] 已更新 {len(pivot)} 天 → {OUTPUT}")
+    return df
 
 
-if __name__ == "__main__":
-    main()
+# -------------------------------------------
+# 主更新函式
+# -------------------------------------------
+def update_weather_once():
+    if not os.path.exists(OUTPUT):
+        print("[INFO] 沒有資料檔案，建立一個新的。")
+        df = pd.DataFrame()
+        df.to_csv(OUTPUT)
+
+    df = pd.read_csv(OUTPUT)
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"]).dt.date
+
+    # 找到最後一天
+    if len(df) == 0:
+        last_date = datetime(2020, 1, 1).date()
+    else:
+        last_date = df["date"].max()
+
+    next_date = last_date + timedelta(days=1)
+    today = datetime.today().date()
+
+    if next_date >= today:
+        print("[INFO] 今日資料尚未更新，先睡覺。")
+        return
+
+    print(f"[INFO] 嘗試抓取 {next_date} 的資料...")
+
+    records = fetch_one_day(str(next_date))
+    processed = process_daily_records(records)
+
+    if processed is None or len(processed) == 0:
+        print(f"[INFO] NOAA 尚未更新 {next_date} 的資料。")
+        return
+
+    # append
+    processed.to_csv(OUTPUT, mode="a", header=False)
+    print(f"[SUCCESS] 已更新 {next_date}！")
+
+
+# -------------------------------------------
+# 無限迴圈：每天檢查一次
+# -------------------------------------------
+print("[INFO] 啟動自動氣象更新器...")
+
+while True:
+    update_weather_once()
+    print("[INFO] 休息 12 小時...")
+    time.sleep(60 * 60 * 12)
