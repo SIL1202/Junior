@@ -224,6 +224,61 @@ results = {
 
 print("\n最佳模型：", min(results, key=results.get))
 
+
+def forecast_next_week(df, model, feature_cols):
+    future_preds = []
+    temp_df = df.copy()
+
+    for i in range(7):
+        last_row = temp_df.iloc[-1]
+        next_date = last_row["date"] + pd.Timedelta(days=1)
+
+        # --- 建 new_row ---
+        new_row = {"date": next_date}
+
+        # 季節特徵
+        new_row["month"] = next_date.month
+        new_row["day_of_year"] = next_date.timetuple().tm_yday
+        new_row["is_winter"] = int(next_date.month in [12, 1, 2])
+        new_row["is_summer"] = int(next_date.month in [6, 7, 8])
+
+        # static features 先補上（一定要在預測前就存在）
+        for col in ["SNOW", "SNWD", "AWND", "WSF2", "WDF2", "WT01", "WT03"]:
+            # 若 df 裡有就沿用最後一天，否則設 0
+            if col in temp_df.columns:
+                new_row[col] = temp_df[col].iloc[-1]
+            else:
+                new_row[col] = 0
+
+        # lag 特徵
+        for col in strong_features:
+            for lag in [1, 2, 3]:
+                new_row[f"{col}_lag{lag}"] = temp_df[col].iloc[-lag]
+
+        # 先建好完整特徵
+        next_df = pd.DataFrame([new_row]).fillna(0)
+
+        # --- 預測 ---
+        X_next = next_df[feature_cols].values
+        pred_tmax = model.predict(X_next)[0]
+        future_preds.append((next_date, pred_tmax))
+
+        # --- append 回 df ---
+        next_df["TMAX"] = pred_tmax  # 預測值
+        next_df["TMIN"] = temp_df["TMIN"].iloc[-1]
+        next_df["PRCP"] = 0
+
+        temp_df = pd.concat([temp_df, next_df], ignore_index=True)
+
+    return pd.DataFrame(future_preds, columns=["date", "pred_TMAX"])
+
+
+future_week = forecast_next_week(df, rf, feature_cols)
+future_week.to_csv("future_7days.csv", index=False)
+
+print("\n=== 未來七天溫度預測 ===")
+print(future_week)
+
 # ------------------------
 # 視覺化
 # ------------------------

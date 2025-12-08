@@ -1,24 +1,17 @@
 import requests
 import pandas as pd
 import os
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from datetime import date
-import logging
-import time
 
-# -------------------------
-# 設定
-# -------------------------
 load_dotenv()
 TOKEN = os.getenv("NOAA_API_TOKEN")
 
 STATION = "GHCND:USW00094728"  # New York Central Park
-START_YEAR = 2020
-END_YEAR = 2025  # 建議至少抓 5 年資料以達到 1000 筆
-
 BASE_URL = "https://www.ncdc.noaa.gov/cdo-web/api/v2/data"
 HEADERS = {"token": TOKEN}
 
+# 你抓的所有 datatype
 DATATYPES = [
     "TMAX",
     "TMIN",
@@ -32,123 +25,75 @@ DATATYPES = [
     "WT03",
 ]
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
-log = logging.getLogger(__name__)
+OUTPUT = "weather_processed.csv"
 
 
-# -------------------------
-# 抓單一 datatype（含 offset）
-# -------------------------
-def fetch_datatype(year, datatype):
-    all_records = []
+def fetch_range(start, end):
+    """抓取 start ~ end 之間的所有天數資料"""
+    params = {
+        "datasetid": "GHCND",
+        "stationid": STATION,
+        "startdate": start,
+        "enddate": end,
+        "limit": 1000,
+        "datatypeid": ",".join(DATATYPES),
+    }
+    r = requests.get(BASE_URL, headers=HEADERS, params=params)
 
-    for month in range(1, 13):
-        start = f"{year}-{month:02d}-01"
+    if r.status_code != 200:
+        print("API ERROR:", r.text)
+        return []
 
-        if year == END_YEAR and month > date.today().month:
-            break
-
-        if month == 12:
-            end = f"{year}-12-31"
-        else:
-            end = f"{year}-{month+1:02d}-01"
-
-        offset = 1
-
-        while True:
-            params = {
-                "datasetid": "GHCND",
-                "stationid": STATION,
-                "startdate": start,
-                "enddate": end,
-                "datatypeid": datatype,
-                "limit": 1000,
-                "offset": offset,
-            }
-
-            try:
-                r = requests.get(BASE_URL, headers=HEADERS, params=params, timeout=15)
-
-                if r.status_code != 200:
-                    log.warning(f"{datatype} {year}-{month:02d} 回應 {r.status_code}")
-                    break
-
-                results = r.json().get("results", [])
-
-                # 沒資料就終止該月抓取
-                if len(results) == 0:
-                    break
-
-                all_records.extend(results)
-                offset += 1000  # 翻下一頁
-
-            except Exception as e:
-                log.warning(f"{datatype} {year}-{month:02d} 錯誤: {e}")
-                time.sleep(1)
-                break
-
-        log.info(f"{year}-{month:02d} 抓到 {len(all_records)} 筆 {datatype}（累積）")
-
-    return all_records
+    return r.json().get("results", [])
 
 
-# -------------------------
-# Main
-# -------------------------
 def main():
-    log.info("開始抓取 NOAA 資料...")
-
-    all_data = []
-
-    for year in range(START_YEAR, END_YEAR + 1):
-        log.info(f"處理 {year} 年資料...")
-
-        for dt in DATATYPES:
-            log.info(f"抓取 {dt} ...")
-            records = fetch_datatype(year, dt)
-            all_data.extend(records)
-
-    # -------------------------
-    # 轉 DataFrame
-    # -------------------------
-    df = pd.DataFrame(all_data)
-
-    if df.empty:
-        log.error("抓不到任何資料，請檢查 API token 或網路。")
+    # 如果檔案不存在 → 直接退出
+    if not os.path.exists(OUTPUT):
+        print(f"[ERROR] 找不到 {OUTPUT}，請先跑一次 forecasting")
         return
 
+    df = pd.read_csv(OUTPUT)
     df["date"] = pd.to_datetime(df["date"]).dt.date
 
-    df_pivot = df.pivot_table(
+    last_date = df["date"].max()
+    today = datetime.today().date()
+
+    if last_date >= today:
+        print("[INFO] 資料已是最新，不需更新")
+        return
+
+    print(f"[INFO] 目前資料到 {last_date}，開始更新到 {today}")
+
+    start = last_date + timedelta(days=1)
+    end = today
+
+    raw = fetch_range(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+
+    if not raw:
+        print("[INFO] 沒抓到新資料")
+        return
+
+    new_df = pd.DataFrame(raw)
+    new_df["date"] = pd.to_datetime(new_df["date"]).dt.date
+
+    pivot = new_df.pivot_table(
         index="date", columns="datatype", values="value", aggfunc="mean"
     )
 
-    # -------------------------
-    # 數據轉換：除以 10（氣溫/降雨量）
-    # -------------------------
-    for col in ["TMAX", "TMIN"]:
-        if col in df_pivot.columns:
-            df_pivot[col] = df_pivot[col] / 10.0
+    # 轉換單位
+    for col in ["TMAX", "TMIN", "PRCP"]:
+        if col in pivot.columns:
+            pivot[col] /= 10.0
 
-    if "PRCP" in df_pivot.columns:
-        df_pivot["PRCP"] = df_pivot["PRCP"] / 10.0
+    pivot = pivot.reset_index()
 
-    # -------------------------
-    # 天氣旗標 WTxx（缺資料補 0）
-    # -------------------------
-    for wt in ["WT01", "WT03"]:
-        if wt in df_pivot.columns:
-            df_pivot[wt] = df_pivot[wt].fillna(0).apply(lambda x: 1 if x > 0 else 0)
+    # 合併
+    final = pd.concat([df, pivot], ignore_index=True)
+    final = final.sort_values("date")
 
-    # -------------------------
-    # 排序 & 輸出
-    # -------------------------
-    df_pivot = df_pivot.sort_index()
-    df_pivot.to_csv("weather_processed.csv")
-
-    log.info("處理完成！輸出檔案：weather_processed.csv")
-    log.info(f"共 {len(df_pivot)} 天資料")
-    print(df_pivot.head())
+    final.to_csv(OUTPUT, index=False)
+    print(f"[SUCCESS] 已更新 {len(pivot)} 天 → {OUTPUT}")
 
 
 if __name__ == "__main__":
