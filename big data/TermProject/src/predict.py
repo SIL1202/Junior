@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore")
 # ------------------------
 # read data
 # ------------------------
-df = pd.read_csv("weather_processed.csv")
+df = pd.read_csv("../datasets/weather_processed.csv")
 df["date"] = pd.to_datetime(df["date"])
 df = df.sort_values("date").reset_index(drop=True)
 
@@ -222,7 +222,7 @@ def predict():
     )
     print(pred_df.head(20))
 
-    pred_df.to_csv("forecast_output.csv", index=False)
+    pred_df.to_csv("../datasets/forecast_output.csv", index=False)
 
 
 predict()
@@ -331,4 +331,4 @@ plt.grid(True)
 
 plt.tight_layout()
 plt.show()
-lt.show()
+plt.show()

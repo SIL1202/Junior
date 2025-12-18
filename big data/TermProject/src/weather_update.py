@@ -11,12 +11,9 @@ STATION = "GHCND:USW00094728"
 BASE_URL = "https://www.ncdc.noaa.gov/cdo-web/api/v2/data"
 HEADERS = {"token": TOKEN}
 
-OUTPUT = "weather_processed.csv"
+OUTPUT = "../datasets/weather_processed.csv"
 
 
-# -------------------------------------------
-# 抓取某一日期 (單日)
-# -------------------------------------------
 def fetch_one_day(date_str):
     params = {
         "datasetid": "GHCND",
@@ -73,7 +70,7 @@ def update_weather_once():
 
     # 找到最後一天
     if len(df) == 0:
-        last_date = datetime(2020, 1, 1).date()
+        last_date = datetime(2000, 1, 1).date()
     else:
         last_date = df["date"].max()
 
@@ -101,9 +98,10 @@ def update_weather_once():
 # -------------------------------------------
 # 無限迴圈：每天檢查一次
 # -------------------------------------------
-print("[INFO] 啟動自動氣象更新器...")
+if __name__ == "__main__":
+    print("[INFO] 啟動自動氣象更新器...")
 
-while True:
-    update_weather_once()
-    print("[INFO] 休息 12 小時...")
-    time.sleep(60 * 60 * 12)
+    while True:
+        update_weather_once()
+        print("[INFO] 休息 12 小時...")
+        time.sleep(60 * 60 * 12)
