@@ -2,7 +2,7 @@ library(readr)
 library(dplyr)
 
 # Load dataset
-airline <- read_csv("../data_set/Airline Dataset/Airline Dataset Updated - v2.csv")
+airline <- read_csv("../datasets/Airline Dataset/Airline Dataset Updated - v2.csv")
 
 # (A) Count male and female passengers
 gender_count <- count(airline, Gender)
