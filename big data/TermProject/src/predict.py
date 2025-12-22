@@ -122,7 +122,7 @@ rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 r2 = r2_score(y_test, y_pred)
 
 # [NEW] 計算誤差容許準確率 (Accuracy within range)
-# 我們定義：如果預測值跟實際值相差在 3度C 以內，就算「準確」
+# 我們定義：如果預測值跟實際值相差在 5度C 以內，就算「準確」
 tolerance = 5.0
 within_tolerance = np.abs(y_pred - y_test) <= tolerance
 tolerance_acc = np.mean(within_tolerance)
