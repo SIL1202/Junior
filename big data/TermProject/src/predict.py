@@ -1,334 +1,242 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
+import matplotlib.dates as mdates
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
+    accuracy_score,
+    confusion_matrix,
+)
 import warnings
 
 warnings.filterwarnings("ignore")
 
 # ------------------------
-# read data
+# 1. 讀取與前處理
 # ------------------------
 df = pd.read_csv("../datasets/weather_processed.csv")
 df["date"] = pd.to_datetime(df["date"])
 df = df.sort_values("date").reset_index(drop=True)
 
-
 print(f"資料期間：{df['date'].min()} 到 {df['date'].max()}")
-print(f"總筆數：{len(df)}")
 
 
 # ------------------------
-# 加入 lag 特徵
+# 2. 特徵工程 (全標籤輔助版)
 # ------------------------
-def add_lag(df, columns, lags=[1, 2, 3, 7]):
+def create_tags(data):
+    """
+    統一管理標籤定義
+    """
+    # 暖冬標籤 (>= 5度)
+    data["is_warm"] = (data["TMAX"] >= 5.0).astype(int)
+    # 冰凍標籤 (< 0度)
+    data["is_freezing"] = (data["TMAX"] < 0.0).astype(int)
+
+    # 降雨標籤
+    if "PRCP" in data.columns:
+        data["is_rainy"] = (data["PRCP"] > 0).astype(int)
+    else:
+        data["is_rainy"] = 0
+
+    # 降雪標籤
+    if "SNOW" in data.columns:
+        data["is_snowy"] = (data["SNOW"] > 0).astype(int)
+    else:
+        data["is_snowy"] = 0
+
+    return data
+
+
+df = create_tags(df)
+
+# 定義要產生 Lag 的特徵
+features_to_lag = [
+    "TMAX",
+    "TMIN",
+    "PRCP",
+    "SNOW",
+    "AWND",
+    "is_warm",
+    "is_freezing",
+    "is_rainy",
+    "is_snowy",
+]
+
+
+def add_lag(df, columns, lags=[1, 2, 3]):
     temp = df.copy()
     for col in columns:
+        if col not in temp.columns:
+            temp[col] = 0
         for lag in lags:
             temp[f"{col}_lag{lag}"] = temp[col].shift(lag)
     return temp
 
 
-# 原始強特徵（全部包含）
-strong_features = [
-    "TMAX",
-    "TMIN",
-    "PRCP",
-    "SNOW",
-    "SNWD",
-    "AWND",
-    "WSF2",
-    "WDF2",
-    "WT01",
-    "WT03",
-]
+df = add_lag(df, features_to_lag, lags=[1, 2, 3])
 
-df = add_lag(df, strong_features, lags=[1, 2, 3])
-
-# ------------------------
-# 補季節特徵
-# ------------------------
+# 季節特徵
 df["month"] = df["date"].dt.month
 df["day_of_year"] = df["date"].dt.dayofyear
 df["is_winter"] = df["month"].isin([12, 1, 2]).astype(int)
-df["is_summer"] = df["month"].isin([6, 7, 8]).astype(int)
 
 df = df.fillna(0)
 
 # ------------------------
-# 分割資料
+# 3. 分割資料 (只用冬季)
 # ------------------------
-split = int(len(df) * 0.8)
-train = df.iloc[:split]
-test = df.iloc[split:]
+winter_months = [11, 12, 1, 2, 3]
+winter_df = df[df["month"].isin(winter_months)].reset_index(drop=True)
 
-y_train = train["TMAX"].values
-y_test = test["TMAX"].values
+print(f"冬季資料筆數：{len(winter_df)}")
 
-
-# ------------------------
-# 組合全部特徵 X
-# ------------------------
 lag_features = [c for c in df.columns if "_lag" in c]
-static_features = [
-    "month",
-    "day_of_year",
-    "is_winter",
-    "is_summer",
-    "SNOW",
-    "SNWD",
-    "AWND",
-    "WSF2",
-    "WDF2",
-    "WT01",
-    "WT03",
-]
-
+static_features = ["month", "day_of_year", "is_winter"]
 feature_cols = lag_features + static_features
 
-X_train = train[feature_cols].values
-X_test = test[feature_cols].values
+X = winter_df[feature_cols].values
+y = winter_df["TMAX"].values
 
-print(f"使用特徵數量：{len(static_features)} 個")
-
-
-# ------------------------
-# baseline 模型
-# ------------------------
-def moving_average(series, n_test, w=7):
-    hist = list(series)
-    preds = []
-
-    for _ in range(n_test):
-        pred = np.mean(hist[-w:])
-        preds.append(pred)
-        hist.append(pred)  # 更新視窗
-
-    return np.array(preds)
-
-
-def exponential_smoothing(series, n_test, alpha=0.3):
-    last = series[-1]
-    preds = []
-    smoothed = last
-
-    for _ in range(n_test):
-        preds.append(smoothed)
-        smoothed = alpha * smoothed + (1 - alpha) * preds[-1]
-    return np.array(preds)
-
-
-def autoregression(series, n_test, lag=3):
-    X, y = [], []
-    for i in range(lag, len(series)):
-        X.append(series[i - lag : i])
-        y.append(series[i])
-    X, y = np.array(X), np.array(y)
-
-    model = LinearRegression()
-    model.fit(X, y)
-
-    hist = list(series[-lag:])
-    preds = []
-    for _ in range(n_test):
-        pred = model.predict(np.array(hist[-lag:]).reshape(1, -1))[0]
-        preds.append(pred)
-        hist.append(pred)
-    return np.array(preds)
-
-
-ma_pred = moving_average(y_train, len(test))
-es_pred = exponential_smoothing(y_train, len(test))
-ar_pred = autoregression(y_train, len(test))
-
+split = int(len(winter_df) * 0.8)
+X_train, X_test = X[:split], X[split:]
+y_train, y_test = y[:split], y[split:]
+test_dates = winter_df["date"].iloc[split:].reset_index(drop=True)
 
 # ------------------------
-# ML 模型
+# 4. 模型訓練
 # ------------------------
-lr = LinearRegression()
-lr.fit(X_train, y_train)
-lr_pred = lr.predict(X_test)
-
-rf = RandomForestRegressor(n_estimators=300, random_state=42)
+print("\n[INFO] 正在訓練模型 (包含誤差準確率分析)...")
+rf = RandomForestRegressor(n_estimators=400, max_depth=20, random_state=42)
 rf.fit(X_train, y_train)
-rf_pred = rf.predict(X_test)
+y_pred = rf.predict(X_test)
+
+# ------------------------
+# 5. 評估 (加入新指標)
+# ------------------------
+mae = mean_absolute_error(y_test, y_pred)
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+r2 = r2_score(y_test, y_pred)
+
+# [NEW] 計算誤差容許準確率 (Accuracy within range)
+# 我們定義：如果預測值跟實際值相差在 3度C 以內，就算「準確」
+tolerance = 5.0
+within_tolerance = np.abs(y_pred - y_test) <= tolerance
+tolerance_acc = np.mean(within_tolerance)
+
+# [NEW] 計算衍生分類準確率 (Derived Classification Accuracy)
+# 看看回歸模型預測出來的 "暖/冷" 狀態對不對
+actual_warm = (y_test >= 5.0).astype(int)
+pred_warm = (y_pred >= 5.0).astype(int)
+class_acc = accuracy_score(actual_warm, pred_warm)
+
+print(f"\n=== 最終模型評估 ===")
+print(f"MAE (平均誤差)      : {mae:.2f} °C")
+print(f"RMSE (均方根誤差)   : {rmse:.2f} °C")
+print(f"R² (解釋力)         : {r2:.4f}")
+print("-" * 30)
+print(f"Tolerance Accuracy (±{tolerance}°C 準確率) : {tolerance_acc:.2%}")
+print(f"Warm Day Recognition (暖日辨識率)       : {class_acc:.2%}")
+print("-" * 30)
+
+# 儲存
+output_df = pd.DataFrame(
+    {
+        "date": test_dates,
+        "actual_TMAX": y_test,
+        "pred_TMAX": y_pred,
+        "diff": y_test - y_pred,
+        "within_3deg": within_tolerance,
+    }
+)
+output_df.to_csv("../datasets/forecast_output.csv", index=False)
 
 
 # ------------------------
-# 評估
+# 6. 未來 7 天預測
 # ------------------------
-def evaluate(name, true, pred):
-    mae = mean_absolute_error(true, pred)
-    rmse = np.sqrt(mean_squared_error(true, pred))
-    r2 = r2_score(true, pred)
-    print(f"\n{name}")
-    print(f"MAE  : {mae:.2f}")
-    print(f"RMSE : {rmse:.2f}")
-    print(f"R²   : {r2:.4f}")
-    return mae
-
-
-# 預測全部結果
-def predict():
-    pred_df = pd.DataFrame(
-        {
-            "date": test["date"],
-            "actual_TMAX": y_test,
-            "pred_TMAX": ma_pred,
-            "diff": y_test - ma_pred,
-        }
-    )
-    print(pred_df.head(20))
-
-    pred_df = pd.DataFrame(
-        {
-            "date": test["date"],
-            "actual_TMAX": y_test,
-            "pred_TMAX": es_pred,
-            "diff": y_test - es_pred,
-        }
-    )
-    print(pred_df.head(20))
-
-    pred_df = pd.DataFrame(
-        {
-            "date": test["date"],
-            "actual_TMAX": y_test,
-            "pred_TMAX": ar_pred,
-            "diff": y_test - ar_pred,
-        }
-    )
-    print(pred_df.head(20))
-
-    pred_df = pd.DataFrame(
-        {
-            "date": test["date"],
-            "actual_TMAX": y_test,
-            "pred_TMAX": rf_pred,
-            "diff": y_test - rf_pred,
-        }
-    )
-    print(pred_df.head(20))
-
-    pred_df = pd.DataFrame(
-        {
-            "date": test["date"],
-            "actual_TMAX": y_test,
-            "pred_TMAX": lr_pred,
-            "diff": y_test - lr_pred,
-        }
-    )
-    print(pred_df.head(20))
-
-    pred_df.to_csv("../datasets/forecast_output.csv", index=False)
-
-
-predict()
-results = {
-    "MA": evaluate("移動平均", y_test, ma_pred),
-    "ES": evaluate("指數平滑", y_test, es_pred),
-    "AR": evaluate("自回歸", y_test, ar_pred),
-    "LR": evaluate("線性回歸", y_test, lr_pred),
-    "RF": evaluate("隨機森林", y_test, rf_pred),
-}
-
-print("\n最佳模型：", min(results, key=results.get))
-
-
-def forecast_next_week(df, model, feature_cols):
+def forecast_next_week_final(df, model, feature_cols):
     future_preds = []
     temp_df = df.copy()
+    temp_df = create_tags(temp_df)
 
-    for _ in range(7):
+    print(f"\n=== 未來 7 天預測 ===")
+
+    for i in range(1, 8):
         last_row = temp_df.iloc[-1]
         next_date = last_row["date"] + pd.Timedelta(days=1)
 
         new_row = {"date": next_date}
-
-        # 季節特徵
         new_row["month"] = next_date.month
-        new_row["day_of_year"] = next_date.timetuple().tm_yday
+        new_row["day_of_year"] = next_date.dayofyear
         new_row["is_winter"] = int(next_date.month in [12, 1, 2])
-        new_row["is_summer"] = int(next_date.month in [6, 7, 8])
 
-        for col in ["SNOW", "SNWD", "AWND", "WSF2", "WDF2", "WT01", "WT03"]:
-            if col in temp_df.columns:
-                new_row[col] = temp_df[col].iloc[-1]
-            else:
-                new_row[col] = 0
-
-        # lag 特徵
-        for col in strong_features:
+        for col in features_to_lag:
             for lag in [1, 2, 3]:
-                new_row[f"{col}_lag{lag}"] = temp_df[col].iloc[-lag]
+                idx = -lag
+                val = temp_df[col].iloc[idx] if abs(idx) <= len(temp_df) else 0
+                new_row[f"{col}_lag{lag}"] = val
 
         next_df = pd.DataFrame([new_row]).fillna(0)
+        for f in feature_cols:
+            if f not in next_df.columns:
+                next_df[f] = 0
 
-        # 預測
         X_next = next_df[feature_cols].values
         pred_tmax = model.predict(X_next)[0]
-        future_preds.append((next_date, pred_tmax))
 
+        # 推導狀態
+        is_warm = "Yes" if pred_tmax >= 5.0 else "No"
+        desc = f"{pred_tmax:.2f}°C (暖日: {is_warm})"
+        print(f"{next_date}: {desc}")
+
+        future_preds.append(
+            {"date": next_date, "pred_TMAX": pred_tmax, "is_warm": is_warm}
+        )
+
+        # 更新
         next_df["TMAX"] = pred_tmax
+        next_df = create_tags(next_df)  # 自動補上所有標籤
+
+        # 數值延續
         next_df["TMIN"] = temp_df["TMIN"].iloc[-1]
-        next_df["PRCP"] = 0
+        next_df["PRCP"] = temp_df["PRCP"].iloc[-1]
+        next_df["SNOW"] = temp_df["SNOW"].iloc[-1]
+        next_df["AWND"] = temp_df["AWND"].iloc[-1]
 
         temp_df = pd.concat([temp_df, next_df], ignore_index=True)
 
-    return pd.DataFrame(future_preds, columns=["date", "pred_TMAX"])
+    return pd.DataFrame(future_preds)
 
 
-future_week = forecast_next_week(df, rf, feature_cols)
+future_week = forecast_next_week_final(df, rf, feature_cols)
 future_week.to_csv("future_7days.csv", index=False)
 
-print("\n=== 未來七天溫度預測 ===")
-print(future_week)
-
 # ------------------------
-# 視覺化
+# 7. 視覺化 (誤差準確率圖)
 # ------------------------
-plt.figure(figsize=(16, 10))
+plot_days = 150
+last_dates = test_dates[-plot_days:]
+last_y_test = y_test[-plot_days:]
+last_y_pred = y_pred[-plot_days:]
+last_within = within_tolerance[-plot_days:]
 
-# 1. RF vs 實際
-plt.subplot(2, 2, 1)
-plt.plot(test["date"], y_test, label="實際 TMAX")
-plt.plot(test["date"], rf_pred, label="RF 預測")
-plt.xlabel("日期")
-plt.ylabel("最高溫 (°F)")
-plt.title("隨機森林預測結果")
-plt.xticks(rotation=45)
-plt.grid(True)
+plt.figure(figsize=(14, 7))
+
+# 畫實際溫度
+plt.plot(last_dates, last_y_test, color="gray", alpha=0.5, label="Actual")
+plt.plot(last_dates, last_y_pred, color="dodgerblue", label="Predicted")
+
+# 標出「準確」的區間 (綠色背景)
+# 這樣可以看出哪些天是準的，哪些天是不準的
+for date, correct in zip(last_dates, last_within):
+    if not correct:
+        plt.axvline(x=date, color="red", alpha=0.1)  # 預測不準的日子畫紅底
+
+plt.title(f"Prediction Accuracy (Red Zones = Error > {tolerance}°C)")
 plt.legend()
-
-# 2. 誤差分布
-plt.subplot(2, 2, 2)
-errors = rf_pred - y_test
-plt.hist(errors, bins=30, edgecolor="black")
-plt.xlabel("誤差 (°F)")
-plt.ylabel("頻率")
-plt.title("誤差分布 (RF)")
-plt.grid(True)
-
-# 3. MAE 比較
-plt.subplot(2, 2, 3)
-names = list(results.keys())
-vals = list(results.values())
-plt.bar(names, vals, color="skyblue")
-plt.ylabel("MAE (°F)")
-plt.title("模型 MAE 比較")
-plt.grid(axis="y")
-
-# 4. 殘差散佈圖
-plt.subplot(2, 2, 4)
-plt.scatter(rf_pred, errors, alpha=0.6)
-plt.axhline(0, color="red", linestyle="--")
-plt.xlabel("預測值 (°F)")
-plt.ylabel("殘差")
-plt.title("RF 殘差圖")
-plt.grid(True)
-
 plt.tight_layout()
-plt.show()
 plt.show()

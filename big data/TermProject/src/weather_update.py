@@ -22,23 +22,25 @@ def fetch_one_day(date_str):
         "enddate": date_str,
         "limit": 1000,
     }
-    r = requests.get(BASE_URL, headers=HEADERS, params=params)
-
-    if r.status_code != 200:
-        print(f"[WARN] {date_str} 無法取得資料，HTTP {r.status_code}")
+    try:
+        r = requests.get(BASE_URL, headers=HEADERS, params=params)
+        if r.status_code != 200:
+            print(f"[WARN] {date_str} 無法取得資料，HTTP {r.status_code}")
+            return []
+        return r.json().get("results", [])
+    except Exception as e:
+        print(f"[WARN] 連線錯誤: {e}")
         return []
 
-    return r.json().get("results", [])
 
-
-# -------------------------------------------
-# 處理資料
-# -------------------------------------------
 def process_daily_records(records):
     if not records:
         return None
 
     df = pd.DataFrame(records)
+    if "date" not in df.columns:
+        return None
+
     df["date"] = pd.to_datetime(df["date"]).dt.date
     df = df.pivot_table(
         index="date", columns="datatype", values="value", aggfunc="mean"
@@ -52,56 +54,74 @@ def process_daily_records(records):
     if "PRCP" in df.columns:
         df["PRCP"] = df["PRCP"] / 10.0
 
+    # Reset index to make 'date' a column again
+    df = df.reset_index()
     return df
 
 
-# -------------------------------------------
-# 主更新函式
-# -------------------------------------------
 def update_weather_once():
-    if not os.path.exists(OUTPUT):
-        print("[INFO] 沒有資料檔案，建立一個新的。")
-        df = pd.DataFrame()
-        df.to_csv(OUTPUT)
+    file_exists = os.path.exists(OUTPUT)
+    existing_df = pd.DataFrame()
+    last_date = datetime(2000, 1, 1).date()
 
-    df = pd.read_csv(OUTPUT)
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"]).dt.date
-
-    # 找到最後一天
-    if len(df) == 0:
-        last_date = datetime(2000, 1, 1).date()
-    else:
-        last_date = df["date"].max()
+    if file_exists:
+        try:
+            existing_df = pd.read_csv(OUTPUT)
+            if "date" in existing_df.columns and not existing_df.empty:
+                existing_df["date"] = pd.to_datetime(existing_df["date"]).dt.date
+                last_date = existing_df["date"].max()
+            else:
+                print("[WARN] 資料檔存在但無法讀取日期，重新開始。")
+                file_exists = False
+        except Exception as e:
+            print(f"[WARN] 讀取資料檔失敗 ({e})，將重新建立。")
+            file_exists = False
 
     next_date = last_date + timedelta(days=1)
     today = datetime.today().date()
 
     if next_date >= today:
         print("[INFO] 今日資料尚未更新，先睡覺。")
-        return
+        return False
 
     print(f"[INFO] 嘗試抓取 {next_date} 的資料...")
 
     records = fetch_one_day(str(next_date))
     processed = process_daily_records(records)
 
-    if processed is None or len(processed) == 0:
-        print(f"[INFO] NOAA 尚未更新 {next_date} 的資料。")
-        return
+    # 如果當天沒資料，建立一個只有日期的空資料，以免卡住
+    if processed is None or processed.empty:
+        print(f"[WARN] {next_date} 無資料，寫入空紀錄以跳過。")
+        processed = pd.DataFrame({"date": [next_date]})
 
-    # append
-    processed.to_csv(OUTPUT, mode="a", header=False)
+    # --- 修正重點：使用 concat 處理欄位不一致的問題 ---
+    if not existing_df.empty:
+        # 使用 pd.concat 合併新舊資料，Pandas 會自動對齊欄位，缺少的會補 NaN
+        combined = pd.concat([existing_df, processed], ignore_index=True)
+    else:
+        combined = processed
+
+    # 每次都完整寫入，確保欄位正確
+    combined.to_csv(OUTPUT, index=False)
+
     print(f"[SUCCESS] 已更新 {next_date}！")
+    return True
 
 
-# -------------------------------------------
-# 無限迴圈：每天檢查一次
-# -------------------------------------------
 if __name__ == "__main__":
     print("[INFO] 啟動自動氣象更新器...")
 
     while True:
-        update_weather_once()
-        print("[INFO] 休息 12 小時...")
-        time.sleep(60 * 60 * 12)
+        try:
+            updated = update_weather_once()
+            if updated:
+                # 如果有更新資料，只休息 0.5 秒就繼續抓下一天
+                time.sleep(0.5)
+            else:
+                # 如果已經是最新的，休息 12 小時
+                print("[INFO] 休息 12 小時...")
+                time.sleep(60 * 60 * 12)
+        except Exception as e:
+            print(f"[ERROR] 發生未預期錯誤: {e}")
+            print("休息 10 秒後重試...")
+            time.sleep(10)
