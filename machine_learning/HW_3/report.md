@@ -5,7 +5,7 @@ The goal of this project is to classify sequences of numbers into five categorie
 
 ### Core Components
 *   **Embedding Layer**: Since the input is just a list of IDs, I used an Embedding layer to turn these numbers into vectors. This helps the model understand the relationship between different tokens.
-*   **Bidirectional Core:  I used **Bidirectional GRU** as my main model. "Bidirectional" means the model looks at the sequence from both the beginning to the end and the end to the beginning. This gives the model a full "view" of the data.
+*   **Bidirectional Core**:  I used **Bidirectional GRU** as my main model. "Bidirectional" means the model looks at the sequence from both the beginning to the end and the end to the beginning. This gives the model a full "view" of the data.
 *   **Final Classifier**: I combined the results from both directions and used a Linear layer to pick the final category.
 *   **Preprocessing**: I limited the sequence length to 128 (MAX_LEN) and used "Padding" to make all sequences the same size so the GPU can process them quickly.
 
@@ -24,8 +24,12 @@ I trained both models for 10 Epochs. The results clearly demonstrate the advanta
 | **Final Validation Acc**| 98.62% | **99.75%** |
 | **Convergence Speed** | Slower (fluctuated around Epoch 8) | **Fast** (Reached >99% by Epoch 2) |
 
-### Visual Analysis
-Looking at the **`loss_comparison.png`** and **`accuracy_comparison.png`** charts, the GRU model reached 99% accuracy in only 2 epochs. The **`cm_GRU.png` (Confusion Matrix)** also shows that the model made almost zero mistakes on all categories.
+
+### Visual Analysis![Screenshot 2026-01-10 at 2.34.58 AM](https://hackmd.io/_uploads/ryPoqp0NWx.png)
+
+Looking at the **`Train_Loss_Comparison`** and **`Validation_Accuracy_Comparison`** charts, the GRU model reached 99% accuracy in only 2 epochs. The **`Confusion Matrix`** also shows that the model made almost zero mistakes on all categories.
+![Screenshot 2026-01-10 at 2.35.07 AM](https://hackmd.io/_uploads/B1I29TAN-g.png)
+![Screenshot 2026-01-10 at 2.35.14 AM](https://hackmd.io/_uploads/r1gesa04be.png)
 
 ## 4. Difficulties Encountered
 
