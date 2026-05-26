@@ -49,3 +49,40 @@ This project uses a Conda environment for dependency management.
    python src/train_models.py
    python src/optimize_models.py
    python src/final_summary.py
+
+## EXPLAIN OF THE RESULTS
+
+  To explain these scores, think of them as answers to different questions about how "smart" the model is.
+
+  In our project, a "Positive" result means the model predicted the customer WILL CHURN (leave).
+
+  1. Recall (Our Most Important Score: 78.34%)
+   * The Question: "Out of everyone who actually left, how many did we successfully catch?"
+   * Why it matters: In churn prediction, missing a customer who is about to leave is expensive (you lose their future revenue).
+   * In Simple Terms: If 100 people left, our model successfully "sounded the alarm" for 78 of them.
+
+  2. Accuracy (73.81%)
+   * The Question: "Overall, how many times was the model right (both about people staying and people leaving)?"
+   * Why it matters: It gives a general sense of performance.
+   * In Simple Terms: Out of 100 total customers, the model correctly guessed the outcome for about 74 of them.
+
+  3. Precision (65.93% - from our optimized model)
+   * The Question: "When the model says someone is going to leave, how often is it actually right?"
+   * Why it matters: If precision is too low, you waste money sending "Please stay" discounts to people who were never going to leave anyway (False Alarms).
+   * In Simple Terms: When our model points at 10 people and says "They will leave," about 6.5 of them actually would have.
+
+  4. F1-Score (61.36%)
+   * The Question: "What is the balance between Precision and Recall?"
+   * Why it matters: It's hard to have both 100% Precision and 100% Recall. If you try to catch everyone (High Recall), you get more false alarms (Low Precision).
+   * In Simple Terms: This is the "Combined Score" that proves the model is stable and not just guessing.
+
+  5. AUC (0.84)
+   * The Question: "How good is the model at ranking customers from 'Lowest Risk' to 'Highest Risk'?"
+   * Why it matters: A score of 0.5 is like flipping a coin (useless). 1.0 is a perfect psychic.
+   * In Simple Terms: At 0.84, our model is "Excellent." It is very good at putting the real leavers at the top of the list so the marketing team can call them first.
+
+---
+
+  When the professor asks, "Why is your accuracy only 73% but your recall is 78%?"
+  > Answer: "We intentionally optimized for Recall. We would rather have a few 'False Alarms' (Precision) than miss a customer who is actually leaving (Recall), because losing a customer is much more expensive
+  than sending an unnecessary discount."

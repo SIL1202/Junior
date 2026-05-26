@@ -56,3 +56,5 @@ The **Logistic Regression (Weighted)** model was selected as the final solution.
 
 ---
 *Final Documentation generated for Gemini-CLI presentation support. Project Complete.*
+
+> gemini --resume 1bbfafac-90cc-47f1-a3de-35f3febb5e0a
