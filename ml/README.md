@@ -6,9 +6,9 @@ This project focuses on predicting customer churn for a telecommunications servi
 ## Performance Targets
 The primary goal of this project was to prioritize Recall over overall Accuracy.
 * Target Recall: Higher than 75%
-* Achieved Recall: 78.34% (Logistic Regression - Weighted)
-* Achieved Accuracy: 73.81%
-* AUC-ROC: 0.84
+* Achieved Recall: 82.62% (Logistic Regression - Weighted)
+* Achieved Accuracy: 72.46%
+* AUC-ROC: 0.85
 
 ## Repository Structure
 * data/: Contains the raw dataset and processed training/testing sets.
@@ -56,30 +56,30 @@ This project uses a Conda environment for dependency management.
 
   In our project, a "Positive" result means the model predicted the customer WILL CHURN (leave).
 
-  1. Recall (Our Most Important Score: 78.34%)
+  1. Recall (Our Most Important Score: 82.62%)
    * The Question: "Out of everyone who actually left, how many did we successfully catch?"
    * Why it matters: In churn prediction, missing a customer who is about to leave is expensive (you lose their future revenue).
-   * In Simple Terms: If 100 people left, our model successfully "sounded the alarm" for 78 of them.
-
-  2. Accuracy (73.81%)
+   * In Simple Terms: If 100 people left, our model successfully "sounded the alarm" for 83 of them.
+ 
+  2. Accuracy (72.46%)
    * The Question: "Overall, how many times was the model right (both about people staying and people leaving)?"
    * Why it matters: It gives a general sense of performance.
-   * In Simple Terms: Out of 100 total customers, the model correctly guessed the outcome for about 74 of them.
-
-  3. Precision (65.93% - from our optimized model)
+   * In Simple Terms: Out of 100 total customers, the model correctly guessed the outcome for about 72 of them.
+ 
+  3. Precision (48.89% - from our optimized model)
    * The Question: "When the model says someone is going to leave, how often is it actually right?"
    * Why it matters: If precision is too low, you waste money sending "Please stay" discounts to people who were never going to leave anyway (False Alarms).
-   * In Simple Terms: When our model points at 10 people and says "They will leave," about 6.5 of them actually would have.
-
-  4. F1-Score (61.36%)
+   * In Simple Terms: When our model points at 10 people and says "They will leave," about 5 of them actually would have.
+ 
+  4. F1-Score (61.43%)
    * The Question: "What is the balance between Precision and Recall?"
    * Why it matters: It's hard to have both 100% Precision and 100% Recall. If you try to catch everyone (High Recall), you get more false alarms (Low Precision).
    * In Simple Terms: This is the "Combined Score" that proves the model is stable and not just guessing.
-
-  5. AUC (0.84)
+ 
+  5. AUC (0.85)
    * The Question: "How good is the model at ranking customers from 'Lowest Risk' to 'Highest Risk'?"
    * Why it matters: A score of 0.5 is like flipping a coin (useless). 1.0 is a perfect psychic.
-   * In Simple Terms: At 0.84, our model is "Excellent." It is very good at putting the real leavers at the top of the list so the marketing team can call them first.
+   * In Simple Terms: At 0.85, our model is "Excellent." It is very good at putting the real leavers at the top of the list so the marketing team can call them first.
 
 ---
 

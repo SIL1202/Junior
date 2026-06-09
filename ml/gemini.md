@@ -34,10 +34,10 @@ The **Logistic Regression (Weighted)** model was selected as the final solution.
 
 | Model | Accuracy | **Recall (Target >75%)** | AUC |
 | :--- | :--- | :--- | :--- |
-| **Logistic Regression (Weighted)** | **73.81%** | **78.34%** ✅ | **0.84** |
-| Logistic Regression (SMOTE) | 73.53% | 70.32% | 0.82 |
-| XGBoost (Weighted) | 75.73% | 69.52% | 0.82 |
-| Random Forest (Baseline) | 79.13% | 50.00% | 0.82 |
+| **Logistic Regression (Weighted)** | **72.46%** | **82.62%** ✅ | **0.85** |
+| Logistic Regression (SMOTE) | 73.03% | 72.99% | 0.83 |
+| XGBoost (Weighted) | 62.24% | 93.85% ✅ | 0.83 |
+| Random Forest (Baseline) | 78.78% | 47.59% | 0.83 |
 
 ---
 
