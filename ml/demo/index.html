@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>電信客戶流失預測系統 - 系統演示</title>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #6366f1;
+      --secondary: #a855f7;
+      --accent-pink: #ec4899;
+      --success: #10b981;
+      --danger: #ef4444;
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 2rem 1rem;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(to right, #a5b4fc, #c084fc, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      font-weight: 400;
+    }
+
+    .badge-bar {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .badge {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 968px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1.25rem;
+      padding: 2rem;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--secondary);
+      margin-bottom: 1rem;
+    }
+
+    .grid-fields {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    input, select {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      color: #fff;
+      font-family: var(--font-family);
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-container {
+      margin-top: 1.5rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border: none;
+      border-radius: 0.5rem;
+      color: #fff;
+      font-weight: 600;
+      padding: 0.85rem 2rem;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    /* Result Panel Styling */
+    .result-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 350px;
+      text-align: center;
+    }
+
+    .result-placeholder {
+      color: var(--text-muted);
+    }
+
+    .result-placeholder svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 1rem;
+      stroke: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    .result-display {
+      display: none;
+      width: 100%;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Score gauge */
+    .gauge-container {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      margin: 0 auto 1.5rem;
+    }
+
+    .gauge-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.05);
+      stroke-width: 12px;
+    }
+
+    .gauge-fill {
+      fill: none;
+      stroke: var(--success);
+      stroke-width: 12px;
+      stroke-dasharray: 502; /* 2 * PI * r (r=80) */
+      stroke-dashoffset: 502;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.8s;
+    }
+
+    .gauge-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .gauge-percentage {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .gauge-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Prediction Card */
+    .pred-status {
+      border-radius: 0.75rem;
+      padding: 1rem;
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+      display: inline-block;
+      width: 100%;
+    }
+
+    .status-stay {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: var(--success);
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.1) inset;
+    }
+
+    .status-churn {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.1) inset;
+    }
+
+    .metrics-summary {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      text-align: left;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    .summary-row:not(:last-child) {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .summary-label {
+      color: var(--text-muted);
+    }
+
+    .summary-value {
+      font-weight: 600;
+      color: #fff;
+    }
+
+    /* Risk indicators */
+    .risk-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .risk-high { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .risk-low { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>電信客戶流失預測與預警演示系統</h1>
+      <p>基於機器學習優化演算法與進階特徵工程，即時評估訂閱戶流失風險</p>
+      <div class="badge-bar">
+        <span class="badge">特徵工程 V2</span>
+        <span class="badge">分類閾值：0.45</span>
+        <span class="badge">召回率 (Recall)：82.62%</span>
+        <span class="badge">加權邏輯斯迴歸</span>
+      </div>
+    </header>
+
+    <div class="main-grid">
+      <!-- Input Card -->
+      <div class="card">
+        <div class="card-title">客戶特徵資料輸入</div>
+        <form id="prediction-form" onsubmit="event.preventDefault(); calculatePrediction();">
+          
+          <!-- Demographics -->
+          <div class="form-section">
+            <div class="section-title">1. 客戶基本資料</div>
+            <div class="grid-fields">
+              <div class="form-group">
+                <label for="gender">性別</label>
+                <select id="gender">
+                  <option value="Female">女性</option>
+                  <option value="Male">男性</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="SeniorCitizen">是否為年長者 (Senior Citizen)</label>
+                <select id="SeniorCitizen">
+                  <option value="0">否</option>
+                  <option value="1">是</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="Partner">是否有配偶 (Partner)</label>
+                <select id="Partner">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="Dependents">是否有撫養家屬 (Dependents)</label>
+                <select id="Dependents">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Services -->
+          <div class="form-section">
+            <div class="section-title">2. 電信服務配置</div>
+            <div class="grid-fields">
+              <div class="form-group">
+                <label for="PhoneService">電話服務 (Phone Service)</label>
+                <select id="PhoneService" onchange="togglePhoneService(this.value)">
+                  <option value="Yes">有</option>
+                  <option value="No">無</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="MultipleLines">多條電話線 (Multiple Lines)</label>
+                <select id="MultipleLines">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                  <option value="No phone service">無電話服務</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="InternetService" onchange="toggleInternetService(this.value)">網路服務 (Internet Service)</label>
+                <select id="InternetService">
+                  <option value="Fiber optic">光纖 (Fiber Optic)</option>
+                  <option value="DSL">DSL</option>
+                  <option value="No">無</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="OnlineSecurity">網路安全防護 (Online Security)</label>
+                <select id="OnlineSecurity">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                  <option value="No internet service">無網路服務</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="OnlineBackup">雲端備份服務 (Online Backup)</label>
+                <select id="OnlineBackup">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                  <option value="No internet service">無網路服務</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="DeviceProtection">設備保險 (Device Protection)</label>
+                <select id="DeviceProtection">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                  <option value="No internet service">無網路服務</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="TechSupport">技術支援服務 (Tech Support)</label>
+                <select id="TechSupport">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                  <option value="No internet service">無網路服務</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="StreamingTV">影音電視串流 (Streaming TV)</label>
+                <select id="StreamingTV">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                  <option value="No internet service">無網路服務</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="StreamingMovies">電影串流服務 (Streaming Movies)</label>
+                <select id="StreamingMovies">
+                  <option value="No">無</option>
+                  <option value="Yes">有</option>
+                  <option value="No internet service">無網路服務</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Billing & Financials -->
+          <div class="form-section">
+            <div class="section-title">3. 合約及財務資料</div>
+            <div class="grid-fields">
+              <div class="form-group">
+                <label for="Contract">合約類型 (Contract Type)</label>
+                <select id="Contract">
+                  <option value="Month-to-month">按月付款 (Month-to-month)</option>
+                  <option value="One year">一年期合約 (One year)</option>
+                  <option value="Two year">兩年期合約 (Two year)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="PaperlessBilling">無紙化電子帳單 (Paperless Billing)</label>
+                <select id="PaperlessBilling">
+                  <option value="Yes">是</option>
+                  <option value="No">否</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="PaymentMethod">付款方式 (Payment Method)</label>
+                <select id="PaymentMethod">
+                  <option value="Electronic check">電子支票 (Electronic Check)</option>
+                  <option value="Mailed check">郵寄支票 (Mailed Check)</option>
+                  <option value="Bank transfer (automatic)">銀行自動轉帳 (Bank Transfer)</option>
+                  <option value="Credit card (automatic)">信用卡自動扣款 (Credit Card)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="tenure">入網在職月數 (Tenure in Months)</label>
+                <input type="number" id="tenure" min="0" max="72" value="10" required>
+              </div>
+              <div class="form-group">
+                <label for="MonthlyCharges">每月資費 (Monthly Charges, USD)</label>
+                <input type="number" id="MonthlyCharges" min="0" step="0.01" value="79.85" required>
+              </div>
+              <div class="form-group">
+                <label for="TotalCharges">累積總資費 (Total Charges, USD)</label>
+                <input type="number" id="TotalCharges" min="0" step="0.01" value="798.50" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-container">
+            <button type="submit">評估流失風險</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Result Card -->
+      <div class="card" style="display: flex; flex-direction: column;">
+        <div class="card-title">風險預估結果</div>
+        
+        <div class="result-panel">
+          <!-- Placeholder before calculating -->
+          <div id="result-placeholder" class="result-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:64px; height:64px; margin-bottom:1rem; stroke:var(--text-muted); opacity:0.5;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <p>請輸入左側客戶的資料後，<br>點擊「評估流失風險」按鈕進行即時運算。</p>
+          </div>
+
+          <!-- Real display after prediction -->
+          <div id="result-display" class="result-display">
+            <div class="gauge-container">
+              <svg class="gauge-svg" viewBox="0 0 180 180">
+                <circle class="gauge-bg" cx="90" cy="90" r="80"></circle>
+                <circle id="gauge-fill" class="gauge-fill" cx="90" cy="90" r="80"></circle>
+              </svg>
+              <div class="gauge-text">
+                <span id="gauge-val" class="gauge-percentage">0%</span>
+                <span class="gauge-label">流失機率</span>
+              </div>
+            </div>
+
+            <div id="status-card" class="pred-status">
+              評估中
+            </div>
+
+            <div class="metrics-summary">
+              <div class="summary-row">
+                <span class="summary-label">決策警報閾值</span>
+                <span class="summary-value">0.45 (45.0%)</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">計費強度比 (Charges Ratio)</span>
+                <span id="res-ratio" class="summary-value">0.00</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">客戶生命週期區間</span>
+                <span id="res-tenure-group" class="summary-value">-</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">交互風險狀態</span>
+                <span id="res-interaction" class="summary-value">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load model config -->
+  <script src="model_config.js"></script>
+  <script>
+    function togglePhoneService(val) {
+      const ml = document.getElementById('MultipleLines');
+      if (val === 'No') {
+        ml.value = 'No phone service';
+      } else if (ml.value === 'No phone service') {
+        ml.value = 'No';
+      }
+    }
+
+    function toggleInternetService(val) {
+      const internetCols = ['OnlineSecurity', 'OnlineBackup', 'DeviceProtection', 'TechSupport', 'StreamingTV', 'StreamingMovies'];
+      internetCols.forEach(id => {
+        const el = document.getElementById(id);
+        if (val === 'No') {
+          el.value = 'No internet service';
+        } else if (el.value === 'No internet service') {
+          el.value = 'No';
+        }
+      });
+    }
+
+    function calculatePrediction() {
+      // 1. Gather raw inputs
+      const gender = document.getElementById('gender').value;
+      const SeniorCitizen = parseInt(document.getElementById('SeniorCitizen').value);
+      const Partner = document.getElementById('Partner').value;
+      const Dependents = document.getElementById('Dependents').value;
+      const PhoneService = document.getElementById('PhoneService').value;
+      const MultipleLines = document.getElementById('MultipleLines').value;
+      const InternetService = document.getElementById('InternetService').value;
+      const OnlineSecurity = document.getElementById('OnlineSecurity').value;
+      const OnlineBackup = document.getElementById('OnlineBackup').value;
+      const DeviceProtection = document.getElementById('DeviceProtection').value;
+      const TechSupport = document.getElementById('TechSupport').value;
+      const StreamingTV = document.getElementById('StreamingTV').value;
+      const StreamingMovies = document.getElementById('StreamingMovies').value;
+      const Contract = document.getElementById('Contract').value;
+      const PaperlessBilling = document.getElementById('PaperlessBilling').value;
+      const PaymentMethod = document.getElementById('PaymentMethod').value;
+      
+      const tenure = parseFloat(document.getElementById('tenure').value);
+      const MonthlyCharges = parseFloat(document.getElementById('MonthlyCharges').value);
+      const TotalCharges = parseFloat(document.getElementById('TotalCharges').value);
+
+      // 2. Compute engineered features
+      const ChargesRatio = TotalCharges > 0 ? (MonthlyCharges / TotalCharges) : 0;
+      const IsNewCustomer = tenure <= 12 ? 1 : 0;
+      const MonthToMonth_NewCustomer = (Contract === 'Month-to-month' && tenure <= 12) ? 1 : 0;
+
+      // 3. Map to 33 variables array matching features in configuration
+      // MODEL_CONFIG.features order
+      const featuresMap = {};
+
+      // Numerical feature scaling: (val - mean) / std_dev
+      featuresMap['SeniorCitizen'] = SeniorCitizen;
+      featuresMap['Partner'] = Partner === 'Yes' ? 1 : 0;
+      featuresMap['Dependents'] = Dependents === 'Yes' ? 1 : 0;
+      featuresMap['PaperlessBilling'] = PaperlessBilling === 'Yes' ? 1 : 0;
+      
+      // Scaling continuous features
+      featuresMap['tenure'] = (tenure - MODEL_CONFIG.scaler.mean.tenure) / MODEL_CONFIG.scaler.scale.tenure;
+      featuresMap['MonthlyCharges'] = (MonthlyCharges - MODEL_CONFIG.scaler.mean.MonthlyCharges) / MODEL_CONFIG.scaler.scale.MonthlyCharges;
+      featuresMap['TotalCharges'] = (TotalCharges - MODEL_CONFIG.scaler.mean.TotalCharges) / MODEL_CONFIG.scaler.scale.TotalCharges;
+      featuresMap['ChargesRatio'] = (ChargesRatio - MODEL_CONFIG.scaler.mean.ChargesRatio) / MODEL_CONFIG.scaler.scale.ChargesRatio;
+
+      featuresMap['IsNewCustomer'] = IsNewCustomer;
+      featuresMap['MonthToMonth_NewCustomer'] = MonthToMonth_NewCustomer;
+      featuresMap['PhoneService'] = PhoneService === 'Yes' ? 1 : 0;
+
+      // Gender male
+      featuresMap['gender_Male'] = gender === 'Male' ? 1 : 0;
+
+      // Multiple lines
+      featuresMap['MultipleLines_No phone service'] = MultipleLines === 'No phone service' ? 1 : 0;
+      featuresMap['MultipleLines_Yes'] = MultipleLines === 'Yes' ? 1 : 0;
+
+      // Internet Service
+      featuresMap['InternetService_Fiber optic'] = InternetService === 'Fiber optic' ? 1 : 0;
+      featuresMap['InternetService_No'] = InternetService === 'No' ? 1 : 0;
+
+      // Online security
+      featuresMap['OnlineSecurity_No internet service'] = OnlineSecurity === 'No internet service' ? 1 : 0;
+      featuresMap['OnlineSecurity_Yes'] = OnlineSecurity === 'Yes' ? 1 : 0;
+
+      // Online backup
+      featuresMap['OnlineBackup_No internet service'] = OnlineBackup === 'No internet service' ? 1 : 0;
+      featuresMap['OnlineBackup_Yes'] = OnlineBackup === 'Yes' ? 1 : 0;
+
+      // Device protection
+      featuresMap['DeviceProtection_No internet service'] = DeviceProtection === 'No internet service' ? 1 : 0;
+      featuresMap['DeviceProtection_Yes'] = DeviceProtection === 'Yes' ? 1 : 0;
+
+      // Tech support
+      featuresMap['TechSupport_No internet service'] = TechSupport === 'No internet service' ? 1 : 0;
+      featuresMap['TechSupport_Yes'] = TechSupport === 'Yes' ? 1 : 0;
+
+      // Streaming TV
+      featuresMap['StreamingTV_No internet service'] = StreamingTV === 'No internet service' ? 1 : 0;
+      featuresMap['StreamingTV_Yes'] = StreamingTV === 'Yes' ? 1 : 0;
+
+      // Streaming Movies
+      featuresMap['StreamingMovies_No internet service'] = StreamingMovies === 'No internet service' ? 1 : 0;
+      featuresMap['StreamingMovies_Yes'] = StreamingMovies === 'Yes' ? 1 : 0;
+
+      // Contract
+      featuresMap['Contract_One year'] = Contract === 'One year' ? 1 : 0;
+      featuresMap['Contract_Two year'] = Contract === 'Two year' ? 1 : 0;
+
+      // Payment method
+      featuresMap['PaymentMethod_Credit card (automatic)'] = PaymentMethod === 'Credit card (automatic)' ? 1 : 0;
+      featuresMap['PaymentMethod_Electronic check'] = PaymentMethod === 'Electronic check' ? 1 : 0;
+      featuresMap['PaymentMethod_Mailed check'] = PaymentMethod === 'Mailed check' ? 1 : 0;
+
+      // 4. Compute Linear combination z
+      let z = MODEL_CONFIG.intercept;
+      MODEL_CONFIG.features.forEach((feat, index) => {
+        const value = featuresMap[feat] || 0;
+        z += value * MODEL_CONFIG.coefficients[index];
+      });
+
+      // 5. Compute Sigmoid function
+      const probability = 1 / (1 + Math.exp(-z));
+
+      // 6. Display results
+      document.getElementById('result-placeholder').style.display = 'none';
+      const display = document.getElementById('result-display');
+      display.style.display = 'block';
+
+      // Update Gauge
+      const fill = document.getElementById('gauge-fill');
+      const percentage = Math.round(probability * 100);
+      document.getElementById('gauge-val').innerText = `${percentage}%`;
+
+      // 502 is full circumference. Offset is (1 - p) * 502.
+      const offset = (1 - probability) * 502;
+      fill.style.strokeDashoffset = offset;
+
+      // Update Prediction Status
+      const statusCard = document.getElementById('status-card');
+      if (probability >= MODEL_CONFIG.threshold) {
+        statusCard.className = 'pred-status status-churn';
+        statusCard.innerHTML = '🔴 流失機率高 (建議啟動挽留方案)';
+        fill.style.stroke = 'var(--danger)';
+      } else {
+        statusCard.className = 'pred-status status-stay';
+        statusCard.innerHTML = '🟢 客戶狀態穩定';
+        fill.style.stroke = 'var(--success)';
+      }
+
+      // Update financial summary
+      document.getElementById('res-ratio').innerText = ChargesRatio.toFixed(4);
+      
+      const tenureGroup = document.getElementById('res-tenure-group');
+      if (IsNewCustomer === 1) {
+        tenureGroup.innerHTML = '入網 $\\le$ 12 個月 <span class="risk-badge risk-high">高危險期</span>';
+      } else {
+        tenureGroup.innerHTML = '在職 ' + Math.round(tenure) + ' 個月 <span class="risk-badge risk-low">成熟期</span>';
+      }
+
+      const interactionGroup = document.getElementById('res-interaction');
+      if (MonthToMonth_NewCustomer === 1) {
+        interactionGroup.innerHTML = '<span class="risk-badge risk-high">雙重高流失風險</span>';
+      } else {
+        interactionGroup.innerHTML = '狀態良好';
+      }
+    }
+  </script>
+</body>
+</html>
