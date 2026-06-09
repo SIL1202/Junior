@@ -16,6 +16,14 @@ df = pd.read_csv('data/Telco Customer Churn.csv')
 df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
 df['TotalCharges'] = df['TotalCharges'].fillna(0)
 
+# 1b. Advanced Feature Engineering
+# ChargesRatio: MonthlyCharges to TotalCharges ratio (avoid division by zero)
+df['ChargesRatio'] = np.where(df['TotalCharges'] > 0, df['MonthlyCharges'] / df['TotalCharges'], 0)
+# IsNewCustomer: Tenure <= 12 months
+df['IsNewCustomer'] = (df['tenure'] <= 12).astype(int)
+# MonthToMonth_NewCustomer: Contract == 'Month-to-month' and tenure <= 12
+df['MonthToMonth_NewCustomer'] = ((df['Contract'] == 'Month-to-month') & (df['tenure'] <= 12)).astype(int)
+
 # Drop customerID as it's just an identifier
 df.drop('customerID', axis=1, inplace=True)
 
@@ -41,7 +49,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # 6. Scaling
 scaler = StandardScaler()
-numeric_cols = ['tenure', 'MonthlyCharges', 'TotalCharges']
+numeric_cols = ['tenure', 'MonthlyCharges', 'TotalCharges', 'ChargesRatio']
 X_train[numeric_cols] = scaler.fit_transform(X_train[numeric_cols])
 X_test[numeric_cols] = scaler.transform(X_test[numeric_cols])
 

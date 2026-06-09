@@ -43,13 +43,19 @@ for name, model in models.items():
     y_pred = model.predict(X_test)
     y_prob = model.predict_proba(X_test)[:, 1]
     
+    # ROC Curve
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    roc_auc = auc(fpr, tpr)
+    plt.plot(fpr, tpr, label=f'{name} (AUC = {roc_auc:.2f})')
+    
     # Metrics
     metrics = {
         'Model': name,
         'Accuracy': accuracy_score(y_test, y_pred),
         'Precision': precision_score(y_test, y_pred),
         'Recall': recall_score(y_test, y_pred),
-        'F1-Score': f1_score(y_test, y_pred)
+        'F1-Score': f1_score(y_test, y_pred),
+        'AUC': roc_auc
     }
     results.append(metrics)
     
@@ -57,10 +63,18 @@ for name, model in models.items():
     print(f"\n--- {name} Classification Report ---")
     print(classification_report(y_test, y_pred))
     
-    # ROC Curve
-    fpr, tpr, _ = roc_curve(y_test, y_prob)
-    roc_auc = auc(fpr, tpr)
-    plt.plot(fpr, tpr, label=f'{name} (AUC = {roc_auc:.2f})')
+    # Confusion Matrix
+    cm = confusion_matrix(y_test, y_pred)
+    print(f"--- {name} Confusion Matrix ---")
+    print(cm)
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Stay', 'Churn'], yticklabels=['Stay', 'Churn'])
+    plt.title(f'Confusion Matrix - {name}')
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.tight_layout()
+    plt.savefig(f'reports/figures/confusion_matrix_{name.lower().replace(" ", "_")}.png')
+    plt.close()
 
 # Finalize ROC Plot
 plt.plot([0, 1], [0, 1], 'k--')

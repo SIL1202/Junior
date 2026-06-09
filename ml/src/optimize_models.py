@@ -3,8 +3,10 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
-from sklearn.metrics import classification_report, accuracy_score, recall_score, precision_score, f1_score, roc_auc_score
+from sklearn.metrics import classification_report, accuracy_score, recall_score, precision_score, f1_score, roc_auc_score, confusion_matrix
 from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+import seaborn as sns
 import joblib
 import os
 
@@ -23,15 +25,28 @@ smote = SMOTE(random_state=42)
 X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
 
 # Initialize optimized models
+scale_pos_weight = (len(y_train) - sum(y_train)) / sum(y_train)
 models = {
     'Logistic Regression (SMOTE)': LogisticRegression(max_iter=1000, random_state=42),
     'Logistic Regression (Weighted)': LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42),
     'Random Forest (SMOTE)': RandomForestClassifier(n_estimators=100, random_state=42),
     'Random Forest (Weighted)': RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42),
-    'XGBoost (Weighted)': XGBClassifier(scale_pos_weight=(len(y_train)-sum(y_train))/sum(y_train), eval_metric='logloss', random_state=42)
+    'XGBoost (Weighted)': XGBClassifier(
+        scale_pos_weight=scale_pos_weight,
+        learning_rate=0.01,
+        max_depth=3,
+        n_estimators=50,
+        subsample=1.0,
+        eval_metric='logloss',
+        random_state=42
+    )
 }
 
 results = []
+
+# Decision boundary threshold for optimized models
+THRESHOLD = 0.45
+print(f"Applying classification threshold of {THRESHOLD} to predictions...")
 
 for name, model in models.items():
     print(f"Training {name}...")
@@ -43,9 +58,9 @@ for name, model in models.items():
     # Save model
     joblib.dump(model, f'models/{name.lower().replace(" ", "_").replace("(", "").replace(")", "")}.joblib')
     
-    # Predictions
-    y_pred = model.predict(X_test)
+    # Predictions (using custom decision threshold)
     y_prob = model.predict_proba(X_test)[:, 1]
+    y_pred = (y_prob >= THRESHOLD).astype(int)
     
     # Metrics
     metrics = {
@@ -58,7 +73,21 @@ for name, model in models.items():
     }
     results.append(metrics)
     
-    print(f"Recall for {name}: {metrics['Recall']:.4f}")
+    print(f"\n--- {name} Classification Report (Threshold: {THRESHOLD}) ---")
+    print(classification_report(y_test, y_pred))
+    
+    # Confusion Matrix
+    cm = confusion_matrix(y_test, y_pred)
+    print(f"--- {name} Confusion Matrix ---")
+    print(cm)
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Stay', 'Churn'], yticklabels=['Stay', 'Churn'])
+    plt.title(f'Confusion Matrix - {name}\n(Threshold: {THRESHOLD})')
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.tight_layout()
+    plt.savefig(f'reports/figures/confusion_matrix_{name.lower().replace(" ", "_").replace("(", "").replace(")", "")}.png')
+    plt.close()
 
 # Comparison Table
 optimized_df = pd.DataFrame(results)
