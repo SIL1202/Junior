@@ -89,7 +89,8 @@ def main():
                     canvas.end_stroke(user_id, t_ms)
 
                 gui.draw_hand_overlay(frame, track.bbox, color,
-                                       f"U{user_id} #{track.track_id}", pen_down)
+                                       f"U{user_id} #{track.track_id}", pen_down,
+                                       landmarks=track.landmarks)
 
             frame = canvas.composite_onto(frame)
             gui.draw_legend(frame, calibration.user_colors, pen_state)

@@ -4,12 +4,15 @@ import numpy as np
 WAITING_COLOR = (180, 180, 180)
 
 
-def draw_hand_overlay(frame, bbox, color, label, pen_down):
+def draw_hand_overlay(frame, bbox, color, label, pen_down, landmarks=None):
     x1, y1, x2, y2 = bbox.astype(int)
     thickness = 3 if pen_down else 1
     cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
     cv2.putText(frame, label, (x1, max(0, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                 color, 2, cv2.LINE_AA)
+    if landmarks is not None:
+        for x, y in landmarks.astype(int):
+            cv2.circle(frame, (x, y), 3, (0, 0, 255), -1)
 
 
 def draw_legend(frame, user_colors: dict, pen_state: dict):
